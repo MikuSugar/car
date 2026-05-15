@@ -485,7 +485,9 @@
 
         // 智能滚动
         const activeThumbnail = thumbnails[currentIndex];
-        activeThumbnail.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        if (activeThumbnail) {
+            activeThumbnail.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        }
     }
 
     function nextImage() {
