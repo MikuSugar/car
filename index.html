@@ -153,6 +153,11 @@
             z-index: 2;
         }
 
+        .main-image.is-preview {
+            filter: blur(6px);
+            transform: scale(1.01);
+        }
+
         /* 扫描线效果 */
         .scanline {
             position: absolute;
@@ -377,48 +382,68 @@
 </div>
 
 <script>
-    // 保持原有的图片路径不变
-    const images = [
-        'https://cdn.jsdelivr.net/gh/mikusugar/PictureBed/uPic/2025/11/car1.JPG',
-        'https://cdn.jsdelivr.net/gh/mikusugar/PictureBed/uPic/2025/11/car2.JPG',
-        'https://cdn.jsdelivr.net/gh/mikusugar/PictureBed/uPic/2025/11/car3.JPG',
-        'https://cdn.jsdelivr.net/gh/mikusugar/PictureBed/uPic/2025/11/car4.JPG',
-        'https://cdn.jsdelivr.net/gh/mikusugar/PictureBed/uPic/2025/11/car5.JPG',
-        'https://cdn.jsdelivr.net/gh/mikusugar/PictureBed/uPic/2025/11/car6.JPG',
-        'https://cdn.jsdelivr.net/gh/mikusugar/PictureBed/uPic/2025/11/car7.JPG',
-        'https://cdn.jsdelivr.net/gh/mikusugar/PictureBed/uPic/2025/11/car8.JPG',
-        'https://cdn.jsdelivr.net/gh/mikusugar/PictureBed/uPic/2025/11/car9.JPG',
-        'https://cdn.jsdelivr.net/gh/mikusugar/PictureBed/uPic/2025/11/car10.JPG',
-        'https://cdn.jsdelivr.net/gh/mikusugar/PictureBed/uPic/2025/11/car11.JPG',
-        'https://cdn.jsdelivr.net/gh/mikusugar/PictureBed/uPic/2025/11/car12.JPG',
-        'https://cdn.jsdelivr.net/gh/mikusugar/PictureBed/uPic/2025/11/car13.JPG',
-        'https://cdn.jsdelivr.net/gh/mikusugar/PictureBed/uPic/2025/11/car14.JPG',
-        'https://cdn.jsdelivr.net/gh/mikusugar/PictureBed/uPic/2025/11/car15.JPG',
-        'https://cdn.jsdelivr.net/gh/mikusugar/PictureBed/uPic/2025/11/car16.JPG'
-    ];
+    const images = Array.from({ length: 16 }, (_, index) => {
+        const imageId = index + 1;
+        return {
+            preview: `https://cdn.jsdelivr.net/gh/mikusugar/car/source/preview/car${imageId}.jpg`,
+            full: `https://cdn.jsdelivr.net/gh/mikusugar/PictureBed/uPic/2025/11/car${imageId}.JPG`
+        };
+    });
 
     let currentIndex = 0;
     let autoplayInterval;
     let isAutoplayActive = true;
+    const loadedFullImages = new Set();
+
+    function updateMainImage(src, { isPreview = false } = {}) {
+        const mainImage = document.getElementById('mainImage');
+        const loader = document.querySelector('.loader');
+
+        mainImage.onload = () => {
+            mainImage.style.opacity = '1';
+            mainImage.style.transform = 'scale(1)';
+            loader.style.display = 'none';
+        };
+        mainImage.classList.toggle('is-preview', isPreview);
+        mainImage.src = src;
+    }
+
+    function upgradeToFullImage(index) {
+        const image = images[index];
+        if (!image || loadedFullImages.has(image.full)) {
+            if (index === currentIndex) {
+                updateMainImage(image.full);
+            }
+            return;
+        }
+
+        const fullImage = new Image();
+        fullImage.onload = () => {
+            loadedFullImages.add(image.full);
+            if (index === currentIndex) {
+                updateMainImage(image.full);
+            }
+        };
+        fullImage.src = image.full;
+    }
 
     function initGallery() {
-        const mainImage = document.getElementById('mainImage');
         const thumbnailContainer = document.getElementById('thumbnailContainer');
         const totalIdx = document.getElementById('totalIdx');
 
         totalIdx.innerText = images.length.toString().padStart(2, '0');
 
         // 初始加载
-        preloadImage(images[currentIndex]);
+        showImage(currentIndex, { skipTransition: true });
 
         // 创建缩略图
-        images.forEach((src, index) => {
+        images.forEach((image, index) => {
             const thumbnail = document.createElement('div');
             thumbnail.className = 'thumbnail';
             if (index === 0) thumbnail.classList.add('active');
 
             const img = document.createElement('img');
-            img.src = src;
+            img.src = image.preview;
             img.loading = "lazy";
 
             thumbnail.appendChild(img);
@@ -433,33 +458,21 @@
         startAutoplay();
     }
 
-    function preloadImage(src) {
-        const img = new Image();
-        img.src = src;
-        img.onload = () => {
-            const mainImage = document.getElementById('mainImage');
-            mainImage.src = src;
-            mainImage.style.opacity = '1';
-            mainImage.style.transform = 'scale(1)';
-        };
-    }
-
-    function showImage(index) {
+    function showImage(index, { skipTransition = false } = {}) {
         currentIndex = index;
         const mainImage = document.getElementById('mainImage');
         const currentIdxSpan = document.getElementById('currentIdx');
+        const loader = document.querySelector('.loader');
+        const currentImage = images[currentIndex];
 
-        // 切换动画
+        loader.style.display = 'block';
         mainImage.style.opacity = '0';
-        mainImage.style.transform = 'scale(1.02)'; // 轻微缩放效果
+        mainImage.style.transform = 'scale(1.02)';
 
         setTimeout(() => {
-            mainImage.src = images[currentIndex];
-            mainImage.onload = () => {
-                mainImage.style.opacity = '1';
-                mainImage.style.transform = 'scale(1)';
-            }
-        }, 300);
+            updateMainImage(currentImage.preview, { isPreview: true });
+            upgradeToFullImage(currentIndex);
+        }, skipTransition ? 0 : 300);
 
         // 更新数字显示 (补零)
         currentIdxSpan.innerText = (currentIndex + 1).toString().padStart(2, '0');
